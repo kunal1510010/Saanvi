@@ -545,20 +545,47 @@ export default function SaanviPrototype() {
   const progress = Math.min(1, step / steps.length);
 
   return (
-    <div style={{ display: "grid", placeItems: "center", padding: 24, background: "#EFEAE2", minHeight: "100%", fontFamily: "Mulish, sans-serif" }}>
+    <div className="saanvi-outer" style={{ fontFamily: "Mulish, sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Mulish:wght@400;600;700;800&display=swap');
         @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulseDot { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .saanvi-outer {
+          min-height: 100vh;
+          background: ${C.ivory};
+          display: flex;
+          justify-content: center;
+        }
+        .saanvi-inner {
+          width: 100%;
+          max-width: 430px;
+          background: ${C.ivory};
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          min-height: 100vh;
+        }
+        @media (min-width: 600px) {
+          .saanvi-outer {
+            align-items: center;
+            padding: 40px 16px;
+            background: #EFEAE2;
+          }
+          .saanvi-inner {
+            min-height: 0;
+            height: 800px;
+            border-radius: 20px;
+            box-shadow: 0 8px 48px rgba(33,30,26,0.13);
+            overflow: hidden;
+          }
+        }
       `}</style>
 
-      <div style={{ width: 392, height: 800, background: C.ivory, borderRadius: 44, position: "relative", boxShadow: "0 40px 80px rgba(33,30,26,0.28), 0 0 0 11px #1a1714, 0 0 0 13px #2c2824", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(120% 60% at 50% -10%, rgba(240,78,56,0.06), rgba(240,78,56,0) 55%)" }} />
+      <div className="saanvi-inner">
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(120% 60% at 50% -10%, rgba(240,78,56,0.06), rgba(240,78,56,0) 55%)", pointerEvents: "none" }} />
 
-        <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 26px 0", fontSize: 13.5, fontWeight: 700, color: C.ink, zIndex: 2 }}><span>9:41</span><span style={{ letterSpacing: 1 }}>⬤ ⬤ ⬤ ▮</span></div>
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative", padding: "14px 0 6px", zIndex: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative", padding: "16px 0 6px", zIndex: 2 }}>
           <div style={{ position: "absolute", left: 22, top: 11, display: "flex", alignItems: "center", gap: 7 }}>
             {nameKnown && (
               <div style={{ width: 32, height: 32, borderRadius: "50%", background: `linear-gradient(135deg, ${C.orange}, ${C.orangeDeep})`, color: "#fff", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 12.5, fontFamily: "Mulish" }}>{INITIALS}</div>
@@ -616,10 +643,7 @@ export default function SaanviPrototype() {
             <HelpPanel onClose={() => setHelpOpen(false)} />
           </>
         )}
-        <div style={{ display: "flex", justifyContent: "center", paddingBottom: 9, zIndex: 2 }}><div style={{ width: 134, height: 5, background: C.ink, borderRadius: 3, opacity: 0.85 }} /></div>
       </div>
-
-      <p style={{ marginTop: 16, fontSize: 12.5, color: "#8a857d", maxWidth: 392, textAlign: "center", fontFamily: "Mulish" }}>Interactive prototype · tap the speaker to hear Saanvi · try EMIs "Above ₹70,000" to see the boost flow</p>
     </div>
   );
 }
