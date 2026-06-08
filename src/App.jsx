@@ -219,13 +219,13 @@ function SelfieStep({ onDone }) {
 }
 
 /* ---------- Eligibility engine ---------- */
-function computeEligibility({ salary, emiBand, coApplicantIncome = 0, extraIncome = 0 }) {
+function computeEligibility({ salary, emiBand, coApplicantIncome = 0, extraIncome = 0, reducedEMI = 0, reducedTarget = 0, perLakhEmiOverride = 0 }) {
   const gross = Number(salary || 0) + coApplicantIncome + extraIncome;
-  const existingEmi = emiBand === "above" ? 80000 : 32000;
+  const existingEmi = Math.max(0, (emiBand === "above" ? 80000 : 32000) - reducedEMI);
   const affordableEmi = Math.max(0, 0.5 * gross - existingEmi);
-  const perLakhEmi = 868;
+  const perLakhEmi = perLakhEmiOverride || 868;
   const loanCapacity = (affordableEmi / perLakhEmi) * 100000;
-  const bankCap = 0.8 * HOME_VALUE;
+  const bankCap = 0.8 * (HOME_VALUE - reducedTarget);
   const eligibleLoan = Math.min(loanCapacity, bankCap);
   const pct = Math.min(80, Math.max(0, Math.round((eligibleLoan / HOME_VALUE) * 100)));
   return { pct, eligibleLoan, affordableEmi };
@@ -235,18 +235,18 @@ const fmtL = (n) => n >= 10000000 ? "₹" + (n / 10000000).toFixed(2) + " Cr" : 
 
 /* ---------- Ring gauge ---------- */
 function RingGauge({ pct }) {
-  const r = 52, circ = 2 * Math.PI * r;
+  const size = 176, r = 66, circ = 2 * Math.PI * r;
   return (
-    <div style={{ position: "relative", width: 140, height: 140, margin: "0 auto" }}>
-      <svg width="140" height="140" viewBox="0 0 140 140" style={{ transform: "rotate(-90deg)" }}>
-        <circle cx="70" cy="70" r={r} fill="none" stroke="#EBE5DC" strokeWidth="11" />
-        <circle cx="70" cy="70" r={r} fill="none" stroke={C.orange} strokeWidth="11" strokeLinecap="round"
+    <div style={{ position: "relative", width: size, height: size, margin: "0 auto" }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#EBE5DC" strokeWidth="12" />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={C.orange} strokeWidth="12" strokeLinecap="round"
           strokeDasharray={circ} strokeDashoffset={circ * (1 - pct / 100)} style={{ transition: "stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)" }} />
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center" }}>
         <div>
-          <div style={{ fontFamily: "Fraunces, serif", fontSize: 38, fontWeight: 600, color: C.ink, lineHeight: 1 }}>{pct}%</div>
-          <div style={{ fontSize: 10.5, color: C.muted, fontWeight: 700, letterSpacing: 0.5, marginTop: 2, fontFamily: "Mulish" }}>FINANCED</div>
+          <div style={{ fontFamily: "Fraunces, serif", fontSize: 44, fontWeight: 600, color: C.ink, lineHeight: 1 }}>{pct}%</div>
+          <div style={{ fontSize: 10.5, color: C.muted, fontWeight: 700, letterSpacing: 0.5, marginTop: 3, fontFamily: "Mulish" }}>FINANCED</div>
         </div>
       </div>
     </div>
@@ -382,8 +382,6 @@ export default function SaanviPrototype() {
   const [d, setD] = useState({ phone: "", otp: "", residency: "indian", employment: "salaried", funding: "loan", aadhaar: "", pan: "", salary: "", emiBand: "", consent1: false, consent2: false });
   const [thinking, setThinking] = useState(false);
   const [result, setResult] = useState(null);
-  const [boost, setBoost] = useState(null);
-  const [boostedResult, setBoostedResult] = useState(null);
   const [lang, setLang] = useState("en");
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -513,15 +511,9 @@ export default function SaanviPrototype() {
   ];
 
   const runResult = (band) => {
-    next(); setThinking(true); setResult(null); setBoost(null); setBoostedResult(null);
+    next(); setThinking(true); setResult(null);
     const r = computeEligibility({ salary: d.salary, emiBand: band });
     setTimeout(() => { setThinking(false); setResult(r); }, 2200);
-  };
-  const applyBoost = (kind) => {
-    setBoost(kind); setThinking(true); setBoostedResult(null);
-    const extra = kind === "co" ? { coApplicantIncome: 90000 } : kind === "income" ? { extraIncome: 45000 } : {};
-    const r = computeEligibility({ salary: d.salary, emiBand: d.emiBand, ...extra });
-    setTimeout(() => { setThinking(false); setBoostedResult(r); }, 1700);
   };
 
   const cur = steps[step];
@@ -633,7 +625,7 @@ export default function SaanviPrototype() {
               <div style={{ marginTop: "auto", paddingBottom: 22, paddingTop: 14 }}>{cur.render()}</div>
             </div>
           ) : (
-            <ResultScreen thinking={thinking} result={result} boost={boost} boostedResult={boostedResult} data={d} onBoost={applyBoost} />
+            <ResultScreen thinking={thinking} result={result} data={d} />
           )}
         </div>
 
@@ -657,8 +649,58 @@ function ConsentRow({ checked, onClick, text }) {
   );
 }
 
-/* ---------- Result + boost ---------- */
-function ResultScreen({ thinking, result, boost, boostedResult, data, onBoost }) {
+/* ---------- Foresight scenarios ---------- */
+const SCENARIOS = [
+  { key: "co",         icon: UserPlus,   title: "Add a co-applicant",      sub: "Income-contributing family member",    params: { coApplicantIncome: 90000 } },
+  { key: "income",     icon: TrendingUp,  title: "Declare extra income",    sub: "Rent, freelance or bonus income",      params: { extraIncome: 45000 } },
+  { key: "close_loan", icon: CreditCard,  title: "Close a running loan",    sub: "Removes ₹20k/mo from EMI burden",      params: { reducedEMI: 20000 } },
+  { key: "down",       icon: Wallet,      title: "Increase down payment",   sub: "Contribute ₹15L more from savings",    params: { reducedTarget: 1500000 } },
+  { key: "tenure",     icon: RotateCcw,   title: "Extend loan tenure",      sub: "30 years instead of 20 years",         params: { perLakhEmiOverride: 733 } },
+  { key: "stepup",     icon: Sparkles,    title: "Step-up loan product",    sub: "Start low, increase as salary grows",  params: { perLakhEmiOverride: 810 } },
+];
+
+function ForesightTile({ scenario, basePct, data, selected, onSelect }) {
+  const [h, setH] = useState(false);
+  const projected = computeEligibility({ salary: data.salary, emiBand: data.emiBand, ...scenario.params });
+  const delta = projected.pct - basePct;
+  const Icon = scenario.icon;
+  return (
+    <button onClick={() => onSelect(scenario.key)} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{ textAlign: "left", cursor: "pointer", background: selected ? C.soft : C.paper,
+        border: `1.5px solid ${selected ? C.orange : h ? "rgba(240,78,56,0.35)" : C.line}`,
+        borderRadius: 18, padding: "14px 13px", display: "flex", flexDirection: "column", gap: 9,
+        fontFamily: "Mulish", transition: "all .18s ease",
+        boxShadow: selected ? `0 0 0 3px ${C.soft}, 0 4px 14px rgba(240,78,56,0.1)` : h ? "0 6px 16px rgba(33,30,26,0.08)" : "0 1px 3px rgba(33,30,26,0.05)",
+        transform: h && !selected ? "translateY(-1px)" : "none" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <span style={{ width: 36, height: 36, borderRadius: 11, background: selected ? C.orange : C.soft, display: "grid", placeItems: "center", flexShrink: 0, transition: "all .18s ease" }}>
+          <Icon size={17} color={selected ? "#fff" : C.orange} />
+        </span>
+        {selected && <span style={{ width: 20, height: 20, borderRadius: "50%", background: C.orange, display: "grid", placeItems: "center", flexShrink: 0 }}><Check size={11} color="#fff" strokeWidth={3} /></span>}
+      </div>
+      <div>
+        <div style={{ fontWeight: 800, fontSize: 13, color: C.ink, lineHeight: 1.3 }}>{scenario.title}</div>
+        <div style={{ fontSize: 11, color: C.muted, marginTop: 2, lineHeight: 1.35 }}>{scenario.sub}</div>
+      </div>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 3, background: delta > 0 ? "rgba(46,158,91,0.1)" : "rgba(33,30,26,0.06)", color: delta > 0 ? "#2E9E5B" : C.muted, padding: "4px 8px", borderRadius: 20, fontSize: 11.5, fontWeight: 800, alignSelf: "flex-start" }}>
+        {delta > 0 ? `+${delta}%` : `${delta}%`} → {projected.pct}%
+      </div>
+    </button>
+  );
+}
+
+/* ---------- Result screen ---------- */
+function ResultScreen({ thinking, result, data }) {
+  const [selected, setSelected] = useState(null);
+  const [boostedResult, setBoostedResult] = useState(null);
+
+  const handleSelect = (key) => {
+    if (selected === key) { setSelected(null); setBoostedResult(null); return; }
+    setSelected(key);
+    const s = SCENARIOS.find(sc => sc.key === key);
+    setBoostedResult(computeEligibility({ salary: data.salary, emiBand: data.emiBand, ...s.params }));
+  };
+
   if (thinking && !result) {
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", animation: "fadeUp .4s ease both" }}>
@@ -670,78 +712,77 @@ function ResultScreen({ thinking, result, boost, boostedResult, data, onBoost })
     );
   }
   if (!result) return null;
+
   const active = boostedResult || result;
-  const low = result.pct < 60;
   const contributionPct = 100 - active.pct;
-  const recommended = data.emiBand === "above" ? "co" : "income";
+  const delta = boostedResult ? boostedResult.pct - result.pct : 0;
+  const selectedScenario = SCENARIOS.find(s => s.key === selected);
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 16, paddingBottom: 22, animation: "fadeUp .45s ease both" }}>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.6, textTransform: "uppercase", color: C.orange, marginBottom: 8 }}>{boostedResult ? "Updated estimate" : low ? "Saanvi recommends" : `You're ready, ${FETCH.first}`}</div>
-        <div style={{ fontFamily: "Fraunces, serif", fontSize: 22, fontWeight: 500, color: C.ink, lineHeight: 1.25, letterSpacing: -0.3, maxWidth: 300, margin: "0 auto 14px" }}>
-          {low && !boostedResult ? <>For now you can finance about {<span style={{ color: C.orange, fontStyle: "italic" }}>{active.pct}%</span>} of your home</> : <>You can finance up to {<span style={{ color: C.orange, fontStyle: "italic" }}>{active.pct}%</span>} of your home</>}
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 16, paddingBottom: 28, animation: "fadeUp .45s ease both" }}>
+
+      {/* header */}
+      <div style={{ textAlign: "center", marginBottom: 4 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.6, textTransform: "uppercase", color: C.orange, marginBottom: 6 }}>
+          {boostedResult ? "Updated estimate" : `You're set, ${FETCH.first}`}
         </div>
+        <div style={{ fontFamily: "Fraunces, serif", fontSize: 18, fontWeight: 500, color: C.ink, lineHeight: 1.28, letterSpacing: -0.2, maxWidth: 270, margin: "0 auto" }}>
+          {boostedResult
+            ? <>Eligibility moves to <span style={{ color: C.orange, fontStyle: "italic" }}>{active.pct}%</span> with this change</>
+            : <>You can finance up to <span style={{ color: C.orange, fontStyle: "italic" }}>{active.pct}%</span> of your home</>}
+        </div>
+        {boostedResult && delta > 0 && (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 8, background: "rgba(46,158,91,0.1)", color: "#2E9E5B", padding: "5px 12px", borderRadius: 20, fontSize: 12.5, fontWeight: 800 }}>
+            <TrendingUp size={13} /> +{delta}% boost · was {result.pct}%
+          </div>
+        )}
       </div>
 
       <RingGauge pct={active.pct} />
 
       {/* breakdown */}
-      <div style={{ background: C.paper, border: `1.5px solid ${C.line}`, borderRadius: 16, padding: "14px 16px", margin: "16px 0 0", display: "grid", gap: 10 }}>
-        {[["Indicative home value", fmtCr(HOME_VALUE)], ["Eligible loan", fmtL(active.eligibleLoan)], [`You arrange (${contributionPct}%)`, fmtL(HOME_VALUE - active.eligibleLoan)]].map(([l, v], i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", paddingTop: i ? 10 : 0, borderTop: i ? `1px solid ${C.line}` : "none" }}>
-            <span style={{ fontSize: 13, color: C.muted, fontWeight: 600 }}>{l}</span>
-            <span style={{ fontSize: 14, color: i === 1 ? C.orange : C.ink, fontWeight: 800 }}>{v}</span>
+      <div style={{ background: C.paper, border: `1.5px solid ${C.line}`, borderRadius: 16, padding: "13px 15px", margin: "14px 0 0", display: "grid", gap: 9 }}>
+        {[["Indicative home value", fmtCr(HOME_VALUE)], ["Eligible loan", fmtL(active.eligibleLoan)], [`Your contribution (${contributionPct}%)`, fmtL(HOME_VALUE - active.eligibleLoan)]].map(([l, v], i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", paddingTop: i ? 9 : 0, borderTop: i ? `1px solid ${C.line}` : "none" }}>
+            <span style={{ fontSize: 12.5, color: C.muted, fontWeight: 600 }}>{l}</span>
+            <span style={{ fontSize: 13.5, color: i === 1 ? C.orange : C.ink, fontWeight: 800 }}>{v}</span>
           </div>
         ))}
       </div>
 
-      {/* based-on tags */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 12, justifyContent: "center" }}>
-        {[`Take-home ₹${Number(data.salary || 0).toLocaleString("en-IN")}`, data.emiBand === "above" ? "EMIs > ₹70k" : "EMIs < ₹70k", "KYC verified"].map((t, i) => (
-          <span key={i} style={{ fontSize: 11, fontWeight: 700, color: C.muted, background: "#F1ECE4", padding: "5px 10px", borderRadius: 20 }}>{t}</span>
+      {/* basis tags */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10, justifyContent: "center" }}>
+        {[`₹${Number(data.salary || 0).toLocaleString("en-IN")}/mo`, data.emiBand === "above" ? "EMIs > ₹70k" : "EMIs < ₹70k", "KYC verified"].map((t, i) => (
+          <span key={i} style={{ fontSize: 11, fontWeight: 700, color: C.muted, background: "#F1ECE4", padding: "4px 9px", borderRadius: 20 }}>{t}</span>
         ))}
       </div>
 
-      {low && !boostedResult && (
-        <div style={{ marginTop: 16 }}>
-          <div style={{ background: C.soft, border: `1px solid ${C.line}`, borderRadius: 14, padding: "13px 14px", marginBottom: 12 }}>
-            <p style={{ fontSize: 13, color: C.ink, lineHeight: 1.5, fontWeight: 600 }}><Sparkles size={13} color={C.orange} style={{ verticalAlign: -2, marginRight: 5 }} />{data.emiBand === "above" ? `${FETCH.first}, your existing EMIs are limiting eligibility. Adding a co-applicant's income lifts it the most.` : "A little more household income pushes you well past the threshold. Here's the fastest lever."}</p>
-          </div>
-          <div style={{ display: "grid", gap: 10 }}>
-            <BoostCard icon={UserPlus} title="Add a co-applicant" sub="Income-contributing family member" recommended={recommended === "co"} onClick={() => onBoost("co")} />
-            <BoostCard icon={TrendingUp} title="Add other income" sub="Rent, bonus or secondary income" recommended={recommended === "income"} onClick={() => onBoost("income")} />
-          </div>
+      {/* foresight grid */}
+      <div style={{ marginTop: 22 }}>
+        <div style={{ textAlign: "center", marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.8, textTransform: "uppercase", color: C.muted }}>Make a choice · see where it takes you</div>
+          <div style={{ fontSize: 12.5, color: C.muted, marginTop: 3 }}>Tap a tile to see your projected eligibility</div>
         </div>
-      )}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {SCENARIOS.map(s => (
+            <ForesightTile key={s.key} scenario={s} basePct={result.pct} data={data} selected={selected === s.key} onSelect={handleSelect} />
+          ))}
+        </div>
+      </div>
 
-      {boostedResult && (
-        <div style={{ marginTop: 14 }}>
-          <div style={{ background: C.soft, border: `1px solid ${C.line}`, borderRadius: 14, padding: "13px 14px", marginBottom: 12 }}>
-            <p style={{ fontSize: 13, color: C.ink, lineHeight: 1.5, fontWeight: 600 }}><Check size={14} color={C.orange} style={{ verticalAlign: -2, marginRight: 5 }} />{boost === "co" ? "With a co-applicant" : "With your added income"}, your eligibility moved from {result.pct}% to <b>{boostedResult.pct}%</b>.</p>
+      {/* CTA */}
+      <div style={{ marginTop: 20 }}>
+        {selected && (
+          <div style={{ background: C.soft, border: `1px solid rgba(240,78,56,0.18)`, borderRadius: 14, padding: "12px 14px", marginBottom: 12 }}>
+            <p style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.5, fontWeight: 600, margin: 0 }}>
+              <Check size={13} color={C.orange} style={{ verticalAlign: -2, marginRight: 5 }} />
+              <b>{selectedScenario.title}</b> moves your eligibility from {result.pct}% to <b style={{ color: C.orange }}>{active.pct}%</b>.
+            </p>
           </div>
-          <Primary onClick={() => {}}>Confirm & secure Priority Access <Check size={17} /></Primary>
-        </div>
-      )}
-
-      {!low && (
-        <div style={{ marginTop: 18 }}>
-          <p style={{ fontSize: 12, color: C.muted, textAlign: "center", marginBottom: 12 }}>Indicative estimate — not a loan sanction.</p>
-          <Primary onClick={() => {}}>Confirm & secure Priority Access <Check size={17} /></Primary>
-        </div>
-      )}
+        )}
+        <p style={{ fontSize: 11.5, color: C.muted, textAlign: "center", marginBottom: 12 }}>Indicative estimate · not a loan sanction.</p>
+        <Primary onClick={() => {}}>Confirm & secure Priority Access <Check size={17} /></Primary>
+      </div>
     </div>
-  );
-}
-
-function BoostCard({ icon: Icon, title, sub, recommended, onClick }) {
-  const [h, setH] = useState(false);
-  return (
-    <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-      style={{ width: "100%", textAlign: "left", cursor: "pointer", position: "relative", background: C.paper, border: `1.5px solid ${recommended ? C.orange : C.line}`, borderRadius: 16, padding: "14px", display: "flex", alignItems: "center", gap: 12, fontFamily: "Mulish", boxShadow: h ? "0 8px 20px rgba(33,30,26,0.08)" : "0 1px 2px rgba(33,30,26,0.04)", transform: h ? "translateY(-1px)" : "none", transition: "all .18s ease" }}>
-      <span style={{ width: 38, height: 38, borderRadius: 12, background: C.soft, display: "grid", placeItems: "center", flexShrink: 0 }}><Icon size={18} color={C.orange} /></span>
-      <span style={{ flex: 1 }}><span style={{ display: "block", fontWeight: 800, fontSize: 15, color: C.ink }}>{title}</span><span style={{ display: "block", fontSize: 12.5, color: C.muted, marginTop: 1 }}>{sub}</span></span>
-      {recommended && <span style={{ fontSize: 10, fontWeight: 800, color: C.orange, background: C.soft, padding: "4px 8px", borderRadius: 20, letterSpacing: 0.4 }}>BEST</span>}
-    </button>
   );
 }
