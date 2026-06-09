@@ -613,7 +613,7 @@ export default function SaanviPrototype() {
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "0 26px", zIndex: 2, overflowY: "auto" }}>
           {!onResult ? (
-            <div key={step} style={{ flex: 1, display: "flex", flexDirection: "column", animation: "fadeUp .45s ease both" }}>
+            <div key={step} style={{ display: "flex", flexDirection: "column", animation: "fadeUp .45s ease both" }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 24 }}>
                 <Orb state={cur.orb} />
                 {cur.orb !== "idle" && <div style={{ marginTop: 10, fontSize: 11, fontWeight: 800, letterSpacing: 1.6, textTransform: "uppercase", color: C.orange, display: "flex", alignItems: "center", gap: 6 }}>{cur.orb === "thinking" && <Dots />}{STATE_LABEL[cur.orb]}</div>}
@@ -622,7 +622,7 @@ export default function SaanviPrototype() {
                 <div style={{ fontFamily: "Fraunces, serif", fontSize: 25, fontWeight: 500, lineHeight: 1.22, color: C.ink, letterSpacing: -0.4 }}>{cur.caption}</div>
                 {cur.hint && <p style={{ fontSize: 13.5, color: C.muted, marginTop: 11, lineHeight: 1.5, maxWidth: 300, marginInline: "auto" }}>{cur.hint}</p>}
               </div>
-              <div style={{ marginTop: "auto", paddingBottom: 22, paddingTop: 14 }}>{cur.render()}</div>
+              <div style={{ marginTop: 28, paddingBottom: 32 }}>{cur.render()}</div>
             </div>
           ) : (
             <ResultScreen thinking={thinking} result={result} data={d} />
