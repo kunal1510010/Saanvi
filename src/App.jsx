@@ -554,19 +554,15 @@ export default function SaanviPrototype() {
           max-width: 430px;
           background: ${C.ivory};
           position: relative;
-          display: flex;
-          flex-direction: column;
           min-height: 100vh;
         }
         @media (min-width: 600px) {
           .saanvi-outer {
-            align-items: center;
             padding: 40px 16px;
             background: #EFEAE2;
           }
           .saanvi-inner {
             min-height: 0;
-            height: 800px;
             border-radius: 20px;
             box-shadow: 0 8px 48px rgba(33,30,26,0.13);
             overflow: hidden;
@@ -611,9 +607,9 @@ export default function SaanviPrototype() {
           <div style={{ height: "100%", width: `${(onResult ? 1 : progress) * 100}%`, background: C.orange, borderRadius: 2, transition: "width .5s ease" }} />
         </div>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "0 26px", zIndex: 2, overflowY: "auto" }}>
+        <div style={{ padding: "0 26px", zIndex: 2 }}>
           {!onResult ? (
-            <div key={step} style={{ display: "flex", flexDirection: "column", animation: "fadeUp .45s ease both" }}>
+            <div key={step} style={{ animation: "fadeUp .45s ease both" }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 24 }}>
                 <Orb state={cur.orb} />
                 {cur.orb !== "idle" && <div style={{ marginTop: 10, fontSize: 11, fontWeight: 800, letterSpacing: 1.6, textTransform: "uppercase", color: C.orange, display: "flex", alignItems: "center", gap: 6 }}>{cur.orb === "thinking" && <Dots />}{STATE_LABEL[cur.orb]}</div>}
@@ -703,7 +699,7 @@ function ResultScreen({ thinking, result, data }) {
 
   if (thinking && !result) {
     return (
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", animation: "fadeUp .4s ease both" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: 80, paddingBottom: 40, animation: "fadeUp .4s ease both" }}>
         <Orb state="thinking" />
         <div style={{ marginTop: 14, fontSize: 11, fontWeight: 800, letterSpacing: 1.6, textTransform: "uppercase", color: C.orange, display: "flex", gap: 6, alignItems: "center" }}><Dots /> Thinking</div>
         <p style={{ fontFamily: "Fraunces, serif", fontSize: 22, color: C.ink, marginTop: 18, textAlign: "center", maxWidth: 280, lineHeight: 1.3 }}>Crunching your numbers, {FETCH.first}…</p>
@@ -719,7 +715,7 @@ function ResultScreen({ thinking, result, data }) {
   const selectedScenario = SCENARIOS.find(s => s.key === selected);
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 16, paddingBottom: 28, animation: "fadeUp .45s ease both" }}>
+    <div style={{ paddingTop: 16, paddingBottom: 28, animation: "fadeUp .45s ease both" }}>
 
       {/* header */}
       <div style={{ textAlign: "center", marginBottom: 4 }}>
