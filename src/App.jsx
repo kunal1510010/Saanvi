@@ -377,7 +377,7 @@ function HelpPanel({ onClose }) {
 /* ========================================================================= */
 export default function SaanviPrototype() {
   const [step, setStep] = useState(0);
-  const [voice, setVoice] = useState(false);
+  const [voice, setVoice] = useState(true);
   const [photo, setPhoto] = useState(false);
   const [d, setD] = useState({ phone: "", otp: "", residency: "indian", employment: "salaried", funding: "loan", aadhaar: "", pan: "", salary: "", emiBand: "", consent1: false, consent2: false });
   const [thinking, setThinking] = useState(false);
@@ -462,7 +462,7 @@ export default function SaanviPrototype() {
 
     { voice: "To verify your identity, share your Aadhaar number. I'll request a one-time password from U-I-D-A-I.",
       caption: <>Let's verify your identity with {ACC("Aadhaar")}.</>, hint: "I'll request a secure OTP from UIDAI. Used only for verification.", orb: "listening",
-      render: () => (<><Field value={d.aadhaar} onChange={(v) => { const x = v.replace(/\D/g, "").slice(0, 12); upd("aadhaar", x.replace(/(.{4})/g, "$1 ").trim()); }} placeholder="1234 5678 9012" /><div style={{ height: 12 }} /><Primary disabled={d.aadhaar.replace(/\s/g, "").length !== 12} onClick={next}>Verify with OTP</Primary><Ghost onClick={next}>Upload Aadhaar instead</Ghost></>) },
+      render: () => (<><Field value={d.aadhaar} onChange={(v) => { const x = v.replace(/\D/g, "").slice(0, 12); upd("aadhaar", x.replace(/(.{4})/g, "$1 ").trim()); }} placeholder="1234 5678 9012" /><div style={{ height: 12 }} /><Primary disabled={d.aadhaar.replace(/\s/g, "").length !== 12} onClick={next}>Verify with OTP</Primary><div style={{ height: 10 }} /><Ghost onClick={next}>Upload Aadhaar instead</Ghost></>) },
 
     { voice: `All verified. Here's what Aadhaar has on record — pleased to meet you, ${FETCH.first}. Does this look right?`,
       caption: <>All verified — pleased to meet you, {ACC(FETCH.first)}.</>, hint: "Here's what Aadhaar returned. Quick check before we move on.", orb: "recommends",
